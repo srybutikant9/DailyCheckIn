@@ -1,31 +1,38 @@
 name: Build DailyCheckIn APK
 
 on:
-  workflow_dispatch:   # 手动点按钮就能编
+  workflow_dispatch:
   push:
     branches: [main, master]
 
+permissions:
+  contents: read
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # ✅ 钉死 24.04，避开 ubuntu-latest → 26.04 的迁移警告（issue #14748）
+    runs-on: ubuntu-24.04
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        # ✅ checkout v5 原生跑 Node24，消 Node20 警告
+        uses: actions/checkout@v5
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        # ✅ setup-java v5，消 "v4 deprecated" 警告
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+          # 缓存 Gradle 顺带加速，也避免重复下依赖
+          cache: gradle
 
       - name: Make gradlew executable
         run: chmod +x gradlew
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        # 加 --stacktrace，下次再 exit 1 你能直接看到是哪行 Gradle 错
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: dailycheckin-debug
-          path: app/build/outputs/apk/debug/*.apk
+        uses: actions/upload-artifact@v4   # upload-artifact 目前 v4 是 Node20-free 主线
